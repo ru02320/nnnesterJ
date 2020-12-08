@@ -1,0 +1,1 @@
+#define EXTKEYALLNUM 24

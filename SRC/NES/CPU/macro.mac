@@ -1,0 +1,465 @@
+
+
+%macro PUBLICL 1
+ALIGN 8
+	GLOBAL _%1
+	_%1:
+	%1:
+%endmacro
+
+
+%macro EXTERNL 1
+	EXTERN _%1
+	%define %1 _%1
+%endmacro
+
+
+%macro ENDINST 2
+	add		word[CPU_PC],%1
+	add		dword[CPU_CYCLE],%2
+	ret
+%endmacro
+
+%macro ENDINST1 1
+	inc		word[CPU_PC]
+	add		dword[CPU_CYCLE],%1
+	ret
+%endmacro
+
+%macro S_PUSH 0
+	mov		ebx,dword[MAIN_MEMORY]
+	add		ebx,100h
+	add		ebx,dword[CPU_REGS]
+	mov		byte[ebx],al
+	dec		byte[CPU_REGS]
+%endmacro
+
+%macro S_POP 0
+	mov		ebx,dword[MAIN_MEMORY]
+	add		ebx,100h
+	inc		byte[CPU_REGS]
+	add		ebx,dword[CPU_REGS]
+	mov		al,byte[ebx]
+%endmacro
+
+%macro SETSHIFTCFLAG 0
+	lahf
+	mov		byte[CPU_CFLAG],ah
+%endmacro
+
+%macro SETNFLAG 0		;negative
+	mov		byte[CPU_NFLAG],0ffh
+%endmacro
+%macro SETVFLAG 0		;OVERFLOW
+	mov		byte[CPU_VFLAG],0ffh
+%endmacro
+%macro SETBFLAG 0		;BRK
+	mov		byte[CPU_BFLAG],0ffh
+%endmacro
+%macro SETDFLAG 0		;DECIMAL MODE
+	mov		byte[CPU_DFLAG],0ffh
+%endmacro
+%macro SETIFLAG 0		;IRQ DISABLE
+	mov		byte[CPU_IFLAG],0ffh
+%endmacro
+%macro SETZFLAG 0		;zero
+	mov		byte[CPU_ZFLAG],0ffh
+%endmacro
+%macro SETCFLAG 0		;carry
+	mov		byte[CPU_CFLAG],0ffh
+%endmacro
+
+%macro CLEARNFLAG 0		;negative
+	mov		byte[CPU_NFLAG],0
+%endmacro
+%macro CLEARVFLAG 0		;OVERFLOW
+	mov		byte[CPU_VFLAG],0
+%endmacro
+%macro CLEARBFLAG 0		;BRK
+	mov		byte[CPU_BFLAG],0
+%endmacro
+%macro CLEARDFLAG 0		;DECIMAL MODE
+	mov		byte[CPU_DFLAG],0
+%endmacro
+%macro CLEARIFLAG 0		;IRQ DISABLE
+	mov		byte[CPU_IFLAG],0
+%endmacro
+%macro CLEARZFLAG 0		;zero
+	mov		byte[CPU_ZFLAG],0
+%endmacro
+%macro CLEARCFLAG 0		;carry
+	mov		byte[CPU_CFLAG],0
+%endmacro
+
+
+%macro IFNFLAGSET 1		;negative
+	test	byte[CPU_NFLAG],80h
+	jnz		%1
+%endmacro
+%macro IFVFLAGSET 1		;OVERFLOW
+	test	byte[CPU_VFLAG],80h
+	jnz		%1
+%endmacro
+%macro IFBFLAGSET 1		;BRK
+	test	byte[CPU_BFLAG],1
+	jnz		%1
+%endmacro
+%macro IFDFLAGSET 1		;DECIMAL MODE
+	test	byte[CPU_DFLAG],1
+	jnz		%1
+%endmacro
+%macro IFIFLAGSET 1		;IRQ DISABLE
+	test	byte[CPU_IFLAG],1
+	jnz		%1
+%endmacro
+%macro IFZFLAGSET 1		;zero
+	test	byte[CPU_ZFLAG],40h
+	jnz		%1
+%endmacro
+%macro IFCFLAGSET 1		;carry
+	test	byte[CPU_CFLAG],1
+	jnz		%1
+%endmacro
+
+
+%macro IFNFLAGCLEAR 1		;negative
+	test	byte[CPU_NFLAG],80h
+	jz		%1
+%endmacro
+%macro IFVFLAGCLEAR 1		;OVERFLOW
+	test	byte[CPU_VFLAG],80h
+	jz		%1
+%endmacro
+%macro IFBFLAGCLEAR 1		;BRK
+	test	byte[CPU_BFLAG],1
+	jz		%1
+%endmacro
+%macro IFDFLAGCLEAR 1		;DECIMAL MODE
+	test	byte[CPU_DFLAG],1
+	jz		%1
+%endmacro
+%macro IFIFLAGCLEAR 1		;IRQ DISABLE
+	test	byte[CPU_IFLAG],1
+	jz		%1
+%endmacro
+%macro IFZFLAGCLEAR 1		;zero
+	test	byte[CPU_ZFLAG],40h
+	jz		%1
+%endmacro
+%macro IFCFLAGCLEAR 1		;carry
+	test	byte[CPU_CFLAG],1
+	jz		%1
+%endmacro
+
+
+
+
+;SET N,Z FLAG
+%macro SETFLAG1 1
+	mov		byte[CPU_NFLAG],%1
+	test	%1,%1
+	lahf
+	mov		byte[CPU_ZFLAG],ah
+%endmacro
+
+
+;(ADC)
+%macro ADC_C 0
+	xor		ah,ah
+	mov		cx,word[CPU_CFLAG]
+	mov		dx,word[CPU_REGA]
+	and		cl,1
+	add		cx,ax
+	add		cx,dx
+	mov		byte[CPU_REGA],cl
+	mov		byte[CPU_CFLAG],ch
+	SETFLAG1 cl
+	xor		cl,dl
+	xor		dl,al
+	not		dl
+	and		dl,cl
+	mov		byte[CPU_VFLAG],dl
+%endmacro
+
+;(SBC)
+%macro SBC_C 0
+	xor		ah,ah
+	mov		cx,word[CPU_CFLAG]
+	mov		dx,word[CPU_REGA]
+	mov		bx,dx
+	and		cl,1
+	xor		cl,1
+	sub		dx,cx
+	sub		dx,ax
+	mov		byte[CPU_REGA],dl
+	not		dh
+	mov		byte[CPU_CFLAG],dh
+	SETFLAG1 dl
+	xor		dl,bl
+	xor		bl,al
+	and		bl,dl
+	mov		byte[CPU_VFLAG],bl
+%endmacro
+
+
+;CONVFLAG  To 6502FLAG
+%macro CONVFLAG 0
+	mov		al,20h
+	IFCFLAGCLEAR .convflagl1
+	or		al,F_CARRY
+.convflagl1
+	IFZFLAGCLEAR .convflagl2
+	or		al,F_ZERO
+.convflagl2
+	IFIFLAGCLEAR .convflagl3
+	or		al,F_INT
+.convflagl3
+	IFDFLAGCLEAR .convflagl4
+	or		al,F_DEC
+.convflagl4
+	IFBFLAGCLEAR .convflagl5
+	or		al,F_BREAK
+.convflagl5
+	IFVFLAGCLEAR .convflagl6
+	or		al,F_OVER
+.convflagl6
+	IFNFLAGCLEAR .convflagl7
+	or		al,F_SIGN
+.convflagl7
+%endmacro
+
+
+;RCONVFLAG  6502FLAG to original
+%macro RCONVFLAG 0
+	CLEARNFLAG
+	CLEARVFLAG
+	CLEARBFLAG
+	CLEARDFLAG
+	CLEARIFLAG
+	CLEARZFLAG
+	CLEARCFLAG
+	test	al,F_CARRY
+	jz		.rconvflagl1
+	SETCFLAG
+.rconvflagl1
+	test	al,F_ZERO
+	jz		.rconvflagl2
+	SETZFLAG
+.rconvflagl2
+	test	al,F_INT
+	jz		.rconvflagl3
+	SETIFLAG
+.rconvflagl3
+	test	al,F_DEC
+	jz		.rconvflagl4
+	SETDFLAG
+.rconvflagl4
+	test	al,F_BREAK
+	jz		.rconvflagl5
+	SETBFLAG
+.rconvflagl5
+	test	al,F_OVER
+	jz		.rconvflagl6
+	SETVFLAG
+.rconvflagl6
+	test	al,F_SIGN
+	jz		.rconvflagl7
+	SETNFLAG
+.rconvflagl7
+%endmacro
+
+
+
+;;;         B7,B6,B6,B6,B5,B4,B3,B2,B1,B0
+;;lahf		SF,ZF,--,AF,--,|| --,PF,--,CF
+;;;
+
+
+
+;Immediate   			#aa
+%macro IMMEDIATE 1
+	mov		byte[%1],ah
+%endmacro
+
+
+;Absolute    			aaaa
+%macro ABSOLUTE 0
+	shr		eax,8
+	call	READ_FUNC
+%endmacro
+
+;Absolute write   			aaaa
+%macro ABSOLUTEW 0
+	shr		eax,8
+	call	WRITE_FUNC
+%endmacro
+
+;Indirect Absolute		(aaaa)
+%macro INDIRECTABSOLUTE 0
+	shr		eax,8
+	call	WORD_READ
+	call	READ_FUNC
+%endmacro
+
+
+;Absolute Indexed ,%1		aaaa,%1
+%macro ABSOLUTEINDEXED 1
+	shr		eax,8
+	add		ax,word[%1]
+	call	READ_FUNC
+%endmacro
+
+
+;Absolute Indexed ,%1		aaaa,%1
+%macro ABSOLUTEINDEXEDW 1
+	shr		eax,8
+	add		ax,word[%1]
+	call	WRITE_FUNC
+%endmacro
+
+
+;Absolute Indexed ,%1		aaaa,%1   +cycle
+%macro ABSOLUTEINDEXEDC 1
+	shr		eax,8
+	mov		dl,ah
+	add		ax,word[%1]
+	cmp		dh,ah
+	jz		.absindexl1
+	inc		dword[CPU_CYCLE]
+.absindexl1
+	call	READ_FUNC
+%endmacro
+
+
+
+;Implied
+
+
+;Zero Page read
+%macro ZEROPAGEA 0
+	xor		ecx,ecx
+	mov		ebx,dword[MAIN_MEMORY]
+	mov		cl,ah
+	add		ebx,ecx
+%endmacro
+
+
+;Zero Page read
+%macro ZEROPAGER 0
+	ZEROPAGEA
+	mov		al,byte[ebx]
+%endmacro
+
+
+;Zero Page write
+%macro ZEROPAGEW 0
+	ZEROPAGEA
+	mov		byte[ebx],dl
+%endmacro
+
+
+;;Zero Page Indexed
+%macro ZEROPAGEINDEXAD 0
+	xor		ebx,ebx
+	mov		bl,ah
+	add		ebx,dword[MAIN_MEMORY]
+%endmacro
+
+
+;;Zero Page Indexed , %1
+%macro ZEROPAGEIND_WT 1
+	ZEROPAGEINDEXAD
+	add		ebx,dword[%1]
+	mov		byte[ebx],dl
+%endmacro
+
+
+;;Zero Page Indexed , %1
+%macro ZEROPAGEIND_RD 1
+	ZEROPAGEINDEXAD
+	add		ebx,dword[%1]
+	mov		al,byte[ebx]
+%endmacro
+
+
+
+
+;Indexed Indirect %1		(aa,%1)
+%macro INDEXEDINDIRECT 1
+	mov		dl,ah
+	xor		eax,eax
+	mov		al,dl
+	add		ax,word[%1]
+	call	WORD_READ
+	call	READ_FUNC
+%endmacro
+
+
+;Indexed Indirect %1		(aa,%1)
+%macro INDEXEDINDIRECTW 2
+	mov		dl,ah
+	xor		eax,eax
+	mov		al,dl
+	add		ax,word[%1]
+	call	WORD_READ
+	mov		dl,byte[%2]
+	call	WRITE_FUNC
+%endmacro
+
+
+;Indirect Indexed		(aa),%1
+%macro INDIRECTINDEXED 1
+	mov		dl,ah
+	xor		eax,eax
+	mov		al,dl
+	call	WORD_READ
+	add		ax,word[%1]
+	call	READ_FUNC
+%endmacro
+
+
+;Indirect Indexed		(aa),%1
+%macro INDIRECTINDEXEDW 2
+	mov		dl,ah
+	xor		eax,eax
+	mov		al,dl
+	call	WORD_READ
+	add		ax,word[%1]
+	mov		dl,byte[%2]
+	call	WRITE_FUNC
+%endmacro
+
+
+;Indirect Indexed		(aa),%1			+cycle..
+%macro INDIRECTINDEXEDC 1
+	mov		dl,ah
+	xor		eax,eax
+	mov		al,dl
+	push	dx
+	call	WORD_READ
+	add		ax,word[%1]
+	pop		dx
+	cmp		ah,dh
+	jz		.indirectindexl1
+	inc		dword[CPU_CYCLE]
+.indirectindexl1
+	call	READ_FUNC
+%endmacro
+
+
+;Relative
+%macro RELATIVEJMP 0
+	mov		dx,[CPU_PC]
+	add		dx,2
+	mov		al,ah
+	cbw
+	add		ax,dx
+	mov		word[CPU_PC],ax
+	cmp		ah,dh
+	jz		.releativel1
+	inc		dword[CPU_CYCLE]
+.releativel1
+	inc		dword[CPU_CYCLE]
+%endmacro
+
+

@@ -1,0 +1,1 @@
+gcc -DNDEBUG 2xsai_mmx.c -c -o 2xsai_mmx.obj
